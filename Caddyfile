@@ -1,0 +1,9 @@
+{
+  http_port 80
+}
+
+:80 {
+  reverse_proxy https://api.openai.com {
+    header_up Host api.openai.com
+  }
+}

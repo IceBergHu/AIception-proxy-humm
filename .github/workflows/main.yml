@@ -1,0 +1,51 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out the code
+      uses: actions/checkout@v3
+
+    - name: Build Docker image
+      run: docker build -t aiception-proxy .
+
+    - name: Run Docker container
+      run: docker run -d --name aiception-proxy -p 80:80 aiception-proxy
+
+    - name: Run tests
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: |
+        response=$(curl -s -H "Authorization: Bearer $OPENAI_API_KEY" "http://localhost/v1/models")
+        if [[ $response == *"data"* ]]; then
+          echo "Test passed: Successfully retrieved models from OpenAI API."
+        else
+          echo "Test failed: Unable to retrieve models from OpenAI API."
+          exit 1
+        fi
+
+  publish:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+    - name: Check out the code
+      uses: actions/checkout@v3
+
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v3
+      with:
+        context: .
+        push: true
+        tags: zkl2333/aiception-proxy:latest
